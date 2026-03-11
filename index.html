@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CipherLab — Шифры</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Unbounded:wght@300;600;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --border: #2a2a3a;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --danger: #f43f5e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 10% 20%, rgba(0,229,255,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 90% 80%, rgba(124,58,237,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 2rem 2rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+  .logo {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .logo-sub {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+    background: var(--surface);
+    padding: 0.4rem;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+  }
+  .tab {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.6rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    text-align: center;
+    letter-spacing: 0.03em;
+  }
+  .tab:hover { color: var(--text); background: var(--border); }
+  .tab.active {
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Panel */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .panel-title {
+    font-family: 'Unbounded', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.4rem;
+  }
+  .panel-desc {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+
+  /* Options row */
+  .options-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    align-items: center;
+  }
+  .opt-group { display: flex; flex-direction: column; gap: 0.3rem; }
+  .opt-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  select, input[type=number], input[type=range] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.45rem 0.8rem;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  input[type=number] { width: 80px; }
+  input[type=range] { width: 140px; padding: 0.3rem 0; accent-color: var(--accent); }
+
+  /* Grid layout */
+  .io-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    margin-bottom: 1.2rem;
+  }
+  @media (max-width: 640px) { .io-grid { grid-template-columns: 1fr; } }
+
+  .io-box { display: flex; flex-direction: column; gap: 0.5rem; }
+  .io-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .io-label span { color: var(--accent); }
+
+  textarea {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    padding: 1rem;
+    resize: vertical;
+    min-height: 140px;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 0.6rem 1.4rem;
+    border: none;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger {
+    background: var(--surface);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+
+  /* Copy button */
+  .copy-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    transition: color 0.2s;
+  }
+  .copy-btn:hover { color: var(--accent); }
+
+  /* Morse table */
+  .morse-ref {
+    margin-top: 1.5rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .morse-ref-title {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 0.8rem;
+  }
+  .morse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.3rem;
+  }
+  .morse-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    background: var(--surface);
+  }
+  .morse-char { color: var(--accent); font-weight: 600; }
+  .morse-code { color: var(--muted); }
+
+  /* Vigenere key display */
+  .key-display {
+    font-size: 0.75rem;
+    color: var(--accent3);
+    background: var(--card);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid rgba(16,185,129,0.3);
+    letter-spacing: 0.1em;
+  }
+
+  /* Caesar shift display */
+  .shift-display {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 30px;
+    text-align: center;
+  }
+
+  /* Info badge */
+  .badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    background: rgba(0,229,255,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,255,0.2);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-left: 0.5rem;
+  }
+
+  .error { color: var(--danger); font-size: 0.75rem; margin-top: 0.3rem; }
+  .success { color: var(--accent3); font-size: 0.75rem; margin-top: 0.3rem; }
+
+  /* Vigenere table */
+  .vig-table-wrap {
+    overflow-x: auto;
+    margin-top: 1rem;
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  table.vig { border-collapse: collapse; font-size: 0.6rem; }
+  table.vig th, table.vig td {
+    width: 22px; height: 22px;
+    text-align: center;
+    border: 1px solid rgba(42,42,58,0.6);
+  }
+  table.vig th { background: var(--surface); color: var(--accent); font-weight: 600; position: sticky; }
+  table.vig th:first-child { left: 0; z-index: 2; }
+  table.vig thead th { top: 0; z-index: 3; }
+  table.vig td { background: var(--card); color: var(--muted); }
+  table.vig td:hover { background: var(--accent2); color: white; }
+
+  .sep { width: 100%; height: 1px; background: var(--border); margin: 1.5rem 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">CipherLab</div>
+    <div class="logo-sub">Инструмент шифрования</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('caesar')">Шифр Цезаря</button>
+    <button class="tab" onclick="switchTab('ascii')">ASCII</button>
+    <button class="tab" onclick="switchTab('koi8')">KOI8</button>
+    <button class="tab" onclick="switchTab('morse')">Морзе</button>
+    <button class="tab" onclick="switchTab('vigenere')">Виженер</button>
+  </div>
+
+  <!-- ═══════════════ ЦЕЗАРЬ ═══════════════ -->
+  <div id="tab-caesar" class="panel active">
+    <div class="panel-title">Шифр Цезаря</div>
+    <div class="panel-desc">Каждая буква смещается на фиксированное число позиций в алфавите. Поддержка русского и английского языков.</div>
+
+    <div class="options-row">
+      <div class="opt-group">
+        <div class="opt-label">Язык</div>
+        <select id="caesar-lang">
+          <option value="both">Русский + Английский</option>
+          <option value="ru">Только русский</option>
+          <option value="en">Только английский</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">Сдвиг (0–25)</div>
+        <div style="display:flex;align-items:center;gap:0.7rem">
+          <input type="range" id="caesar-shift-range" min="0" max="25" value="3" oninput="syncShift('range')">
+          <input type="number" id="caesar-shift-num" min="0" max="25" value="3" oninput="syncShift('num')">
+          <span class="shift-display" id="caesar-shift-show">3</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="io-grid">
+      <div class="io-box">
+        <div class="io-label">Входной текст</div>
+        <textarea id="caesar-input" placeholder="Введите текст..."></textarea>
+      </div>
+      <div class="io-box">
+        <div class="io-label">Результат <button class="copy-btn" onclick="copyText('caesar-output')">⧉ копировать</button></div>
+        <textarea id="caesar-output" readonly placeholder="Результат появится здесь..."></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="caesarRun('encrypt')">▶ Зашифровать</button>
+      <button class="btn btn-secondary" onclick="caesarRun('decrypt')">◀ Дешифровать</button>
+      <button class="btn btn-danger" onclick="clearFields('caesar')">✕ Очистить</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ASCII ═══════════════ -->
+  <div id="tab-ascii" class="panel">
+    <div class="panel-title">Шифр ASCII</div>
+    <div class="panel-desc">Преобразование текста в ASCII-коды символов. Поддерживает любые символы Unicode (включая русский язык).</div>
+
+    <div class="options-row">
+      <div class="opt-group">
+        <div class="opt-label">Формат вывода</div>
+        <select id="ascii-format">
+          <option value="decimal">Десятичный (DEC)</option>
+          <option value="hex">Шестнадцатеричный (HEX)</option>
+          <option value="binary">Двоичный (BIN)</option>
+          <option value="octal">Восьмеричный (OCT)</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">Разделитель</div>
+        <select id="ascii-sep">
+          <option value=" ">Пробел</option>
+          <option value=",">Запятая</option>
+          <option value=";">Точка с запятой</option>
+          <option value="-">Дефис</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="io-grid">
+      <div class="io-box">
+        <div class="io-label">Текст</div>
+        <textarea id="ascii-input" placeholder="Введите текст..."></textarea>
+      </div>
+      <div class="io-box">
+        <div class="io-label">Коды <button class="copy-btn" onclick="copyText('ascii-output')">⧉ копировать</button></div>
+        <textarea id="ascii-output" readonly placeholder="Коды символов..."></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="asciiRun('encrypt')">▶ Текст → Коды</button>
+      <button class="btn btn-secondary" onclick="asciiRun('decrypt')">◀ Коды → Текст</button>
+      <button class="btn btn-danger" onclick="clearFields('ascii')">✕ Очистить</button>
+    </div>
+    <div id="ascii-error" class="error"></div>
+  </div>
+
+  <!-- ═══════════════ KOI8 ═══════════════ -->
+  <div id="tab-koi8" class="panel">
+    <div class="panel-title">Шифр KOI8</div>
+    <div class="panel-desc">KOI8-R — кодировка кириллицы, разработанная в 1970-х. Особенность: при сбросе старшего бита остаётся транслитерация латиницей.</div>
+
+    <div class="options-row">
+      <div class="opt-group">
+        <div class="opt-label">Вариант кодировки</div>
+        <select id="koi8-variant">
+          <option value="koi8r">KOI8-R (русский)</option>
+          <option value="koi8u">KOI8-U (украинский)</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">Формат</div>
+        <select id="koi8-format">
+          <option value="hex">HEX</option>
+          <option value="decimal">DEC</option>
+          <option value="binary">BIN</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="io-grid">
+      <div class="io-box">
+        <div class="io-label">Текст (рус/англ)</div>
+        <textarea id="koi8-input" placeholder="Введите текст..."></textarea>
+      </div>
+      <div class="io-box">
+        <div class="io-label">KOI8 коды <button class="copy-btn" onclick="copyText('koi8-output')">⧉ копировать</button></div>
+        <textarea id="koi8-output" readonly placeholder="Байт-коды KOI8..."></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="koi8Run('encrypt')">▶ Текст → KOI8</button>
+      <button class="btn btn-secondary" onclick="koi8Run('decrypt')">◀ KOI8 → Текст</button>
+      <button class="btn btn-danger" onclick="clearFields('koi8')">✕ Очистить</button>
+    </div>
+    <div id="koi8-error" class="error"></div>
+  </div>
+
+  <!-- ═══════════════ МОРЗЕ ═══════════════ -->
+  <div id="tab-morse" class="panel">
+    <div class="panel-title">Азбука Морзе</div>
+    <div class="panel-desc">Точки (·) и тире (−). Поддержка русского и английского алфавитов, цифр и знаков препинания.</div>
+
+    <div class="options-row">
+      <div class="opt-group">
+        <div class="opt-label">Язык</div>
+        <select id="morse-lang">
+          <option value="en">Английский</option>
+          <option value="ru">Русский</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">Разделитель слов</div>
+        <select id="morse-wordsep">
+          <option value=" / "> / (слэш)</option>
+          <option value="  ">Двойной пробел</option>
+          <option value="|">| (вертикальная черта)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="io-grid">
+      <div class="io-box">
+        <div class="io-label">Текст</div>
+        <textarea id="morse-input" placeholder="Введите текст или код Морзе..."></textarea>
+      </div>
+      <div class="io-box">
+        <div class="io-label">Результат <button class="copy-btn" onclick="copyText('morse-output')">⧉ копировать</button></div>
+        <textarea id="morse-output" readonly placeholder="Код Морзе или текст..."></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="morseRun('encrypt')">▶ Текст → Морзе</button>
+      <button class="btn btn-secondary" onclick="morseRun('decrypt')">◀ Морзе → Текст</button>
+      <button class="btn btn-danger" onclick="clearFields('morse')">✕ Очистить</button>
+    </div>
+    <div id="morse-error" class="error"></div>
+
+    <div class="morse-ref">
+      <div class="morse-ref-title">Справочник кодов Морзе — <span id="morse-ref-lang-label">Английский</span></div>
+      <div class="morse-grid" id="morse-ref-grid"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ВИЖЕНЕР ═══════════════ -->
+  <div id="tab-vigenere" class="panel">
+    <div class="panel-title">Шифр Виженера</div>
+    <div class="panel-desc">Полиалфавитный шифр с ключевым словом. Поддержка русского и английского языков.</div>
+
+    <div class="options-row">
+      <div class="opt-group">
+        <div class="opt-label">Язык</div>
+        <select id="vig-lang" onchange="updateVigTable()">
+          <option value="en">Английский</option>
+          <option value="ru">Русский</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">Ключевое слово</div>
+        <input type="text" id="vig-key" placeholder="KEY" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:0.45rem 0.8rem;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:0.8rem;outline:none;width:160px" oninput="updateKeyDisplay()">
+      </div>
+      <div class="opt-group">
+        <div class="opt-label">Ключ (развёрнут)</div>
+        <div class="key-display" id="vig-key-expanded">—</div>
+      </div>
+    </div>
+
+    <div class="io-grid">
+      <div class="io-box">
+        <div class="io-label">Открытый текст</div>
+        <textarea id="vig-input" placeholder="Введите текст..." oninput="updateKeyDisplay()"></textarea>
+      </div>
+      <div class="io-box">
+        <div class="io-label">Шифротекст <button class="copy-btn" onclick="copyText('vig-output')">⧉ копировать</button></div>
+        <textarea id="vig-output" readonly placeholder="Результат..."></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="vigenereRun('encrypt')">▶ Зашифровать</button>
+      <button class="btn btn-secondary" onclick="vigenereRun('decrypt')">◀ Дешифровать</button>
+      <button class="btn btn-danger" onclick="clearFields('vigenere')">✕ Очистить</button>
+    </div>
+    <div id="vig-error" class="error"></div>
+
+    <div class="sep"></div>
+    <div class="morse-ref-title" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:0.5rem">Таблица Виженера</div>
+    <div class="vig-table-wrap" id="vig-table-wrap"></div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'morse') buildMorseRef();
+  if (name === 'vigenere') updateVigTable();
+}
+function copyText(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.value).then(() => {
+    const orig = el.style.borderColor;
+    el.style.borderColor = 'var(--accent3)';
+    setTimeout(() => el.style.borderColor = orig, 800);
+  });
+}
+function clearFields(prefix) {
+  const map = {
+    caesar: ['caesar-input','caesar-output'],
+    ascii: ['ascii-input','ascii-output'],
+    koi8: ['koi8-input','koi8-output'],
+    morse: ['morse-input','morse-output'],
+    vigenere: ['vig-input','vig-output']
+  };
+  map[prefix].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['ascii-error','koi8-error','morse-error','vig-error'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.textContent = '';
+  });
+}
+
+// ══════════════════════════════════════
+// CAESAR
+// ══════════════════════════════════════
+function syncShift(src) {
+  let v;
+  if (src === 'range') v = parseInt(document.getElementById('caesar-shift-range').value);
+  else v = Math.min(25, Math.max(0, parseInt(document.getElementById('caesar-shift-num').value) || 0));
+  document.getElementById('caesar-shift-range').value = v;
+  document.getElementById('caesar-shift-num').value = v;
+  document.getElementById('caesar-shift-show').textContent = v;
+}
+
+const EN_ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const RU_ALPHA = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ';
+
+function caesarChar(ch, shift, alpha, decrypt) {
+  const idx = alpha.indexOf(ch);
+  if (idx === -1) return ch;
+  const len = alpha.length;
+  const d = decrypt ? (len - shift) % len : shift;
+  return alpha[(idx + d) % len];
+}
+
+function caesarRun(mode) {
+  const text = document.getElementById('caesar-input').value;
+  const shift = parseInt(document.getElementById('caesar-shift-range').value);
+  const lang = document.getElementById('caesar-lang').value;
+  const decrypt = mode === 'decrypt';
+  let result = '';
+  for (const ch of text) {
+    const up = ch.toUpperCase();
+    if ((lang === 'en' || lang === 'both') && EN_ALPHA.includes(up)) {
+      const r = caesarChar(up, shift, EN_ALPHA, decrypt);
+      result += ch === ch.toLowerCase() ? r.toLowerCase() : r;
+    } else if ((lang === 'ru' || lang === 'both') && RU_ALPHA.includes(up)) {
+      const r = caesarChar(up, shift, RU_ALPHA, decrypt);
+      result += ch === ch.toLowerCase() ? r.toLowerCase() : r;
+    } else {
+      result += ch;
+    }
+  }
+  document.getElementById('caesar-output').value = result;
+}
+
+// ══════════════════════════════════════
+// ASCII
+// ══════════════════════════════════════
+function asciiRun(mode) {
+  const fmt = document.getElementById('ascii-format').value;
+  const sep = document.getElementById('ascii-sep').value;
+  const errEl = document.getElementById('ascii-error');
+  errEl.textContent = '';
+
+  if (mode === 'encrypt') {
+    const text = document.getElementById('ascii-input').value;
+    const codes = [];
+    for (const ch of text) {
+      const code = ch.codePointAt(0);
+      if (fmt === 'decimal') codes.push(code.toString());
+      else if (fmt === 'hex') codes.push('0x' + code.toString(16).toUpperCase().padStart(2,'0'));
+      else if (fmt === 'binary') codes.push(code.toString(2).padStart(8,'0'));
+      else if (fmt === 'octal') codes.push(code.toString(8));
+    }
+    document.getElementById('ascii-output').value = codes.join(sep);
+  } else {
+    const raw = document.getElementById('ascii-input').value.trim();
+    const parts = raw.split(/[\s,;|\-]+/).filter(Boolean);
+    try {
+      let result = '';
+      for (const p of parts) {
+        let code;
+        if (fmt === 'decimal') code = parseInt(p, 10);
+        else if (fmt === 'hex') code = parseInt(p.replace(/^0x/i,''), 16);
+        else if (fmt === 'binary') code = parseInt(p, 2);
+        else if (fmt === 'octal') code = parseInt(p, 8);
+        if (isNaN(code)) throw new Error('Неверный код: ' + p);
+        result += String.fromCodePoint(code);
+      }
+      document.getElementById('ascii-output').value = result;
+    } catch(e) {
+      errEl.textContent = '⚠ ' + e.message;
+    }
+  }
+}
+
+// ══════════════════════════════════════
+// KOI8-R / KOI8-U
+// ══════════════════════════════════════
+// KOI8-R table: index 0 = byte 0x80
+const KOI8R = [
+  '─','│','┌','┐','└','┘','├','┤','┬','┴','┼','▀','▄','█','▌','▐',
+  '░','▒','▓','⌠','■','∙','√','≈','≤','≥',' ','⌡','°','²','·','÷',
+  '═','║','╒','ё','╓','╔','╕','╖','╗','╘','╙','╚','╛','╜','╝','╞',
+  '╟','╠','╡','Ё','╢','╣','╤','╥','╦','╧','╨','╩','╪','╫','╬','©',
+  'ю','а','б','ц','д','е','ф','г','х','и','й','к','л','м','н','о',
+  'п','я','р','с','т','у','ж','в','ь','ы','з','ш','э','щ','ч','ъ',
+  'Ю','А','Б','Ц','Д','Е','Ф','Г','Х','И','Й','К','Л','М','Н','О',
+  'П','Я','Р','С','Т','У','Ж','В','Ь','Ы','З','Ш','Э','Щ','Ч','Ъ'
+];
+// KOI8-U additions (Ukrainian letters)
+const KOI8U_PATCH = { 0xA4:'і', 0xA6:'ї', 0xA7:'є', 0xAD:'ґ', 0xB4:'І', 0xB6:'Ї', 0xB7:'Є', 0xBD:'Ґ' };
+
+function charToKoi8(ch, variant) {
+  const code = ch.codePointAt(0);
+  if (code < 0x80) return code;
+  // Try KOI8U patch first
+  if (variant === 'koi8u') {
+    for (const [byte, c] of Object.entries(KOI8U_PATCH)) {
+      if (c === ch) return parseInt(byte);
+    }
+  }
+  // Search KOI8R table
+  const idx = KOI8R.indexOf(ch);
+  if (idx !== -1) return idx + 0x80;
+  return code; // fallback: unicode point
+}
+
+function koi8ToChar(byte, variant) {
+  if (byte < 0x80) return String.fromCodePoint(byte);
+  if (variant === 'koi8u' && KOI8U_PATCH[byte]) return KOI8U_PATCH[byte];
+  const idx = byte - 0x80;
+  if (idx >= 0 && idx < KOI8R.length) return KOI8R[idx];
+  return '?';
+}
+
+function koi8Run(mode) {
+  const variant = document.getElementById('koi8-variant').value;
+  const fmt = document.getElementById('koi8-format').value;
+  const errEl = document.getElementById('koi8-error');
+  errEl.textContent = '';
+
+  if (mode === 'encrypt') {
+    const text = document.getElementById('koi8-input').value;
+    const codes = [];
+    for (const ch of text) {
+      const byte = charToKoi8(ch, variant);
+      if (fmt === 'hex') codes.push(byte.toString(16).toUpperCase().padStart(2,'0'));
+      else if (fmt === 'decimal') codes.push(byte.toString());
+      else codes.push(byte.toString(2).padStart(8,'0'));
+    }
+    document.getElementById('koi8-output').value = codes.join(' ');
+  } else {
+    const raw = document.getElementById('koi8-input').value.trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+    try {
+      let result = '';
+      for (const p of parts) {
+        let byte;
+        if (fmt === 'hex') byte = parseInt(p, 16);
+        else if (fmt === 'decimal') byte = parseInt(p, 10);
+        else byte = parseInt(p, 2);
+        if (isNaN(byte)) throw new Error('Неверный байт: ' + p);
+        result += koi8ToChar(byte, variant);
+      }
+      document.getElementById('koi8-output').value = result;
+    } catch(e) {
+      errEl.textContent = '⚠ ' + e.message;
+    }
+  }
+}
+
+// ══════════════════════════════════════
+// MORSE
+// ══════════════════════════════════════
+const MORSE_EN = {
+  'A':'·−','B':'−···','C':'−·−·','D':'−··','E':'·','F':'··−·',
+  'G':'−−·','H':'····','I':'··','J':'·−−−','K':'−·−','L':'·−··',
+  'M':'−−','N':'−·','O':'−−−','P':'·−−·','Q':'−−·−','R':'·−·',
+  'S':'···','T':'−','U':'··−','V':'···−','W':'·−−','X':'−··−',
+  'Y':'−·−−','Z':'−−··',
+  '0':'−−−−−','1':'·−−−−','2':'··−−−','3':'···−−','4':'····−',
+  '5':'·····','6':'−····','7':'−−···','8':'−−−··','9':'−−−−·',
+  '.':'·−·−·−',',':'−−··−−','?':'··−−··','!':'−·−·−−',
+  '/':'−··−·','-':'−····−','(':'−·−−·',')':'−·−−·−'
+};
+const MORSE_RU = {
+  'А':'·−','Б':'−···','В':'·−−','Г':'−−·','Д':'−··','Е':'·',
+  'Ж':'···−','З':'−−··','И':'··','Й':'·−−−','К':'−·−','Л':'·−··',
+  'М':'−−','Н':'−·','О':'−−−','П':'·−−·','Р':'·−·','С':'···',
+  'Т':'−','У':'··−','Ф':'··−·','Х':'····','Ц':'−·−·','Ч':'−−−·',
+  'Ш':'−−−−','Щ':'−−·−','Ъ':'−−·−−','Ы':'−·−−','Ь':'−··−',
+  'Э':'··−··','Ю':'··−−','Я':'·−·−',
+  '0':'−−−−−','1':'·−−−−','2':'··−−−','3':'···−−','4':'····−',
+  '5':'·····','6':'−····','7':'−−···','8':'−−−··','9':'−−−−·'
+};
+
+function buildMorseRef() {
+  const lang = document.getElementById('morse-lang').value;
+  const map = lang === 'ru' ? MORSE_RU : MORSE_EN;
+  document.getElementById('morse-ref-lang-label').textContent = lang === 'ru' ? 'Русский' : 'Английский';
+  const grid = document.getElementById('morse-ref-grid');
+  grid.innerHTML = '';
+  for (const [ch, code] of Object.entries(map)) {
+    const div = document.createElement('div');
+    div.className = 'morse-item';
+    div.innerHTML = `<span class="morse-char">${ch}</span><span class="morse-code">${code}</span>`;
+    grid.appendChild(div);
+  }
+}
+
+document.getElementById('morse-lang').addEventListener('change', buildMorseRef);
+
+function morseRun(mode) {
+  const lang = document.getElementById('morse-lang').value;
+  const wordSep = document.getElementById('morse-wordsep').value;
+  const map = lang === 'ru' ? MORSE_RU : MORSE_EN;
+  const errEl = document.getElementById('morse-error');
+  errEl.textContent = '';
+
+  if (mode === 'encrypt') {
+    const text = document.getElementById('morse-input').value.toUpperCase();
+    const words = text.split(' ');
+    const encodedWords = words.map(word => {
+      const chars = [];
+      for (const ch of word) {
+        if (map[ch]) chars.push(map[ch]);
+        else if (ch.trim()) chars.push('?');
+      }
+      return chars.join(' ');
+    });
+    document.getElementById('morse-output').value = encodedWords.filter(Boolean).join(wordSep);
+  } else {
+    const text = document.getElementById('morse-input').value.trim();
+    const reverse = {};
+    for (const [ch, code] of Object.entries(map)) reverse[code] = ch;
+    const sepRe = new RegExp(wordSep.trim().replace(/[|/]/g,'\\$&'), 'g');
+    const words = text.split(sepRe);
+    const result = words.map(word => {
+      return word.trim().split(' ').map(code => {
+        if (!code.trim()) return '';
+        if (reverse[code]) return reverse[code];
+        errEl.textContent = '⚠ Неизвестный код: ' + code;
+        return '?';
+      }).join('');
+    }).join(' ');
+    document.getElementById('morse-output').value = result;
+  }
+}
+
+// ══════════════════════════════════════
+// VIGENERE
+// ══════════════════════════════════════
+function updateKeyDisplay() {
+  const key = document.getElementById('vig-key').value.toUpperCase().replace(/[^A-ZА-ЯЁ]/g,'');
+  const text = document.getElementById('vig-input').value;
+  if (!key || !text) { document.getElementById('vig-key-expanded').textContent = key || '—'; return; }
+  let expanded = '';
+  let ki = 0;
+  const lang = document.getElementById('vig-lang').value;
+  const alpha = lang === 'ru' ? RU_ALPHA : EN_ALPHA;
+  for (const ch of text) {
+    if (alpha.includes(ch.toUpperCase())) { expanded += key[ki % key.length]; ki++; }
+    else expanded += '_';
+  }
+  document.getElementById('vig-key-expanded').textContent = expanded.substring(0,40) + (expanded.length > 40 ? '…' : '');
+}
+
+function vigenereRun(mode) {
+  const lang = document.getElementById('vig-lang').value;
+  const alpha = lang === 'ru' ? RU_ALPHA : EN_ALPHA;
+  const rawKey = document.getElementById('vig-key').value.toUpperCase().replace(/\s/g,'');
+  const errEl = document.getElementById('vig-error');
+  errEl.textContent = '';
+
+  if (!rawKey) { errEl.textContent = '⚠ Введите ключевое слово'; return; }
+
+  // Filter key to only valid alphabet chars
+  const key = rawKey.split('').filter(c => alpha.includes(c));
+  if (!key.length) { errEl.textContent = '⚠ Ключ должен содержать буквы выбранного языка'; return; }
+
+  const text = document.getElementById('vig-input').value;
+  let result = '';
+  let ki = 0;
+
+  for (const ch of text) {
+    const up = ch.toUpperCase();
+    if (alpha.includes(up)) {
+      const ti = alpha.indexOf(up);
+      const ki_char = key[ki % key.length];
+      const kIdx = alpha.indexOf(ki_char);
+      let ri;
+      if (mode === 'encrypt') ri = (ti + kIdx) % alpha.length;
+      else ri = (ti - kIdx + alpha.length) % alpha.length;
+      const rc = alpha[ri];
+      result += ch === ch.toLowerCase() ? rc.toLowerCase() : rc;
+      ki++;
+    } else {
+      result += ch;
+    }
+  }
+  document.getElementById('vig-output').value = result;
+}
+
+function updateVigTable() {
+  const lang = document.getElementById('vig-lang').value;
+  const alpha = (lang === 'ru' ? RU_ALPHA : EN_ALPHA).split('');
+  const wrap = document.getElementById('vig-table-wrap');
+  let html = '<table class="vig"><thead><tr><th></th>';
+  for (const c of alpha) html += `<th>${c}</th>`;
+  html += '</tr></thead><tbody>';
+  for (let r = 0; r < alpha.length; r++) {
+    html += `<tr><th>${alpha[r]}</th>`;
+    for (let c = 0; c < alpha.length; c++) {
+      html += `<td>${alpha[(r+c)%alpha.length]}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+  updateKeyDisplay();
+}
+
+// Init
+buildMorseRef();
+updateVigTable();
+</script>
+</body>
+</html>
